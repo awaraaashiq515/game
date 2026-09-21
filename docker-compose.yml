@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: virelo_db
+    environment:
+      POSTGRES_USER: virelo
+      POSTGRES_PASSWORD: virelo_secret
+      POSTGRES_DB: virelo_rewards
+    ports:
+      - '5432:5432'
+    volumes:
+      - virelo_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  virelo_pgdata:
