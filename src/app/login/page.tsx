@@ -16,7 +16,7 @@ function LoginForm() {
     status: 'idle' | 'valid' | 'invalid'
     message?: string
   }>({ status: 'idle' })
-  const [isAdmin, setIsAdmin] = useState(false)
+  const isAdmin = false
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -93,54 +93,6 @@ function LoginForm() {
       <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 28 }}>
         Sign in to your Virelo Rewards account
       </p>
-
-      {/* Admin toggle */}
-      <div
-        style={{
-          display: 'flex',
-          background: 'var(--bg-surface)',
-          borderRadius: 10,
-          padding: 4,
-          marginBottom: 24,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setIsAdmin(false)}
-          style={{
-            flex: 1,
-            padding: '8px 0',
-            borderRadius: 8,
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: 14,
-            fontWeight: 600,
-            transition: 'all 0.2s',
-            background: !isAdmin ? 'var(--primary-gradient)' : 'transparent',
-            color: !isAdmin ? 'white' : 'var(--text-muted)',
-          }}
-        >
-          User
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsAdmin(true)}
-          style={{
-            flex: 1,
-            padding: '8px 0',
-            borderRadius: 8,
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: 14,
-            fontWeight: 600,
-            transition: 'all 0.2s',
-            background: isAdmin ? 'var(--primary-gradient)' : 'transparent',
-            color: isAdmin ? 'white' : 'var(--text-muted)',
-          }}
-        >
-          Admin
-        </button>
-      </div>
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {error && (

@@ -16,13 +16,8 @@ export async function GET(request: NextRequest) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Unlock thresholds
-  const MIN_ADS_FOR_WITHDRAWAL = 5
-  const MIN_REFERRALS_FOR_WITHDRAWAL = 7
-  const ACTIVATION_FEE = 5
-
   try {
-    const [wallet, transactions, todayEarnings, completedAds, referralCount, activationRecord] = await Promise.all([
+    const [wallet, transactions, todayEarnings, completedAds, referralCount, activationRecord, unlockTimeRecord, adsConfig, refConfig, feeConfig] = await Promise.all([
       prisma.wallet.findUnique({ where: { userId } }),
       prisma.walletTransaction.findMany({
         where: { wallet: { userId } },
@@ -42,13 +37,32 @@ export async function GET(request: NextRequest) {
       prisma.videoCompletion.count({ where: { userId } }),
       prisma.referral.count({ where: { referrerId: userId } }),
       prisma.systemConfig.findUnique({ where: { key: `withdrawal_activated_${userId}` } }),
+      prisma.systemConfig.findUnique({ where: { key: `withdrawal_unlock_at_${userId}` } }),
+      prisma.systemConfig.findUnique({ where: { key: 'min_ads_for_withdrawal' } }),
+      prisma.systemConfig.findUnique({ where: { key: 'min_referrals_for_withdrawal' } }),
+      prisma.systemConfig.findUnique({ where: { key: 'activation_fee' } }),
     ])
 
+    // Dynamic thresholds (defaults: 3 videos, 7 referrals, ₹5 fee)
+    const minAdsRequired = parseInt(adsConfig?.value ?? '3') || 3
+    const minRefsRequired = parseInt(refConfig?.value ?? '7') || 7
+    const activationFee = parseFloat(feeConfig?.value ?? '5') || 5
+
+    // Check if admin scheduled an unlock time
+    const unlockAtStr = unlockTimeRecord?.value ?? null
+    let isTimeUnlocked = true
+    if (unlockAtStr) {
+      const unlockDate = new Date(unlockAtStr)
+      if (!isNaN(unlockDate.getTime())) {
+        isTimeUnlocked = Date.now() >= unlockDate.getTime()
+      }
+    }
+
     // Step-by-step unlock logic (in order)
-    const videosUnlocked = completedAds >= MIN_ADS_FOR_WITHDRAWAL      // Step 1
-    const friendsUnlocked = referralCount >= MIN_REFERRALS_FOR_WITHDRAWAL // Step 2
-    const activationFeePaid = activationRecord?.value === 'true'          // Step 3
-    const withdrawalUnlocked = videosUnlocked && friendsUnlocked && activationFeePaid
+    const videosUnlocked = completedAds >= minAdsRequired            // Step 1
+    const friendsUnlocked = referralCount >= minRefsRequired         // Step 2
+    const activationFeePaid = activationRecord?.value === 'true'     // Step 3 (Admin approved ₹5)
+    const withdrawalUnlocked = videosUnlocked && friendsUnlocked && activationFeePaid && isTimeUnlocked
 
     return NextResponse.json({
       success: true,
@@ -64,12 +78,14 @@ export async function GET(request: NextRequest) {
         todayEarnings: todayEarnings._sum.amount ?? 0,
         completedAds,
         referralCount,
-        adsRequired: MIN_ADS_FOR_WITHDRAWAL,
-        referralsRequired: MIN_REFERRALS_FOR_WITHDRAWAL,
-        activationFee: ACTIVATION_FEE,
+        adsRequired: minAdsRequired,
+        referralsRequired: minRefsRequired,
+        activationFee: activationFee,
         videosUnlocked,
         friendsUnlocked,
         activationFeePaid,
+        unlockAt: unlockAtStr,
+        isTimeUnlocked,
         withdrawalUnlocked,
         // Legacy compat
         adsUnlocked: videosUnlocked,

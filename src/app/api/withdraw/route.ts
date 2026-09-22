@@ -37,13 +37,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ── STEP 1: 5 videos watched ────────────────────────────────────────────
+    // ── Dynamic thresholds (defaults: 3 videos, 7 referrals) ──────────────────
+    const [adsConfig, refConfig] = await Promise.all([
+      prisma.systemConfig.findUnique({ where: { key: 'min_ads_for_withdrawal' } }),
+      prisma.systemConfig.findUnique({ where: { key: 'min_referrals_for_withdrawal' } }),
+    ])
+    const minAds = parseInt(adsConfig?.value ?? '3') || 3
+    const minRefs = parseInt(refConfig?.value ?? '7') || 7
+
+    // ── STEP 1: 3 videos watched ────────────────────────────────────────────
     const completedAds = await prisma.videoCompletion.count({ where: { userId } })
-    if (completedAds < MIN_ADS) {
+    if (completedAds < minAds) {
       return NextResponse.json(
         {
           success: false,
-          error: `Watch ${MIN_ADS - completedAds} more video${MIN_ADS - completedAds > 1 ? 's' : ''} to unlock withdrawal.`,
+          error: `Watch ${minAds - completedAds} more video${minAds - completedAds > 1 ? 's' : ''} to unlock withdrawal.`,
           code: 'ADS_REQUIRED',
         },
         { status: 403 }
@@ -52,11 +60,11 @@ export async function POST(request: NextRequest) {
 
     // ── STEP 2: 7 friends joined ────────────────────────────────────────────
     const referralCount = await prisma.referral.count({ where: { referrerId: userId } })
-    if (referralCount < MIN_REFERRALS) {
+    if (referralCount < minRefs) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invite ${MIN_REFERRALS - referralCount} more friend${MIN_REFERRALS - referralCount > 1 ? 's' : ''} to unlock withdrawal.`,
+          error: `Invite ${minRefs - referralCount} more friend${minRefs - referralCount > 1 ? 's' : ''} to unlock withdrawal.`,
           code: 'FRIENDS_REQUIRED',
         },
         { status: 403 }
@@ -64,9 +72,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ── STEP 3: ₹5 activation fee paid to admin ─────────────────────────────
-    const activationRecord = await prisma.systemConfig.findUnique({
-      where: { key: `withdrawal_activated_${userId}` },
-    })
+    const [activationRecord, unlockTimeRecord] = await Promise.all([
+      prisma.systemConfig.findUnique({ where: { key: `withdrawal_activated_${userId}` } }),
+      prisma.systemConfig.findUnique({ where: { key: `withdrawal_unlock_at_${userId}` } }),
+    ])
+
     if (activationRecord?.value !== 'true') {
       return NextResponse.json(
         {
@@ -76,6 +86,21 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       )
+    }
+
+    if (unlockTimeRecord?.value) {
+      const unlockDate = new Date(unlockTimeRecord.value)
+      if (!isNaN(unlockDate.getTime()) && Date.now() < unlockDate.getTime()) {
+        const formatted = unlockDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Your withdrawal unlocks on ${formatted}. Please wait until the countdown ends.`,
+            code: 'WITHDRAWAL_TIME_LOCKED',
+          },
+          { status: 403 }
+        )
+      }
     }
 
     // ── STEP 4: Check balance ───────────────────────────────────────────────

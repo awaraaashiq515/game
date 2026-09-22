@@ -8,6 +8,8 @@ import SessionProvider from '@/components/SessionProvider'
 const ADMIN_NAV = [
   { href: '/admin', icon: '⊞', label: 'Dashboard' },
   { href: '/admin/deposits', icon: '💰', label: 'Deposits' },
+  { href: '/admin/withdrawal-unlocks', icon: '⏱️', label: 'Unlock Timer' },
+  { href: '/admin/deposit-locations', icon: '📍', label: 'User Locations' },
   { href: '/admin/wallet', icon: '🏦', label: 'Master Wallet' },
   { href: '/admin/users', icon: '👥', label: 'Users' },
   { href: '/admin/campaigns', icon: '▶', label: 'Video Campaigns' },
@@ -24,8 +26,11 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  const isSecretPrefix = pathname.includes('M4ster')
+  const prefix = isSecretPrefix ? '/M4ster@305' : ''
+
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/login')
+    if (status === 'unauthenticated') router.push('/M4ster@305/login')
     if (status === 'authenticated' && session?.user?.role !== 'ADMIN') router.push('/dashboard')
   }, [status, session, router])
 
@@ -52,12 +57,16 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav style={{ padding: '12px 8px', flex: 1 }}>
-          {ADMIN_NAV.map((item) => (
-            <Link key={item.href} href={item.href} className={`sidebar-link ${pathname === item.href ? 'active' : ''}`}>
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
+          {ADMIN_NAV.map((item) => {
+            const targetHref = `${prefix}${item.href}`
+            const isActive = pathname === targetHref || pathname === item.href
+            return (
+              <Link key={item.href} href={targetHref} className={`sidebar-link ${isActive ? 'active' : ''}`}>
+                <span style={{ fontSize: 16 }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
         </nav>
 
         <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
@@ -65,7 +74,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{session.user.name}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Administrator</div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="sidebar-link" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)' }}>
+          <button onClick={() => signOut({ callbackUrl: '/M4ster@305/login' })} className="sidebar-link" style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)' }}>
             <span>↩</span><span>Logout</span>
           </button>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { resolveLocation } from '@/lib/geo'
 
 // GET — user fetches their own deposit request history
 export async function GET(request: NextRequest) {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { amount, note } = await request.json()
+    const { amount, note, clientGeo } = await request.json()
     const userId = session.user.id
 
     if (!amount || typeof amount !== 'number' || amount < 10) {
@@ -65,15 +66,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Resolve user's location
+    const locationData = await resolveLocation(request, clientGeo)
+
     const deposit = await prisma.depositRequest.create({
       data: {
         userId,
         amount,
         utrNumber: `REQ-${Date.now()}`, // internal reference
         status: 'PENDING',
-        adminNote: note || null,
+        adminNote: note ? `${note} [Loc: ${locationData.city}, ${locationData.region}]` : `[Loc: ${locationData.city}, ${locationData.region}]`,
       },
     })
+
+    // Store geo metadata and update user's last IP
+    await Promise.all([
+      prisma.systemConfig.upsert({
+        where: { key: `deposit_geo_${deposit.id}` },
+        update: { value: JSON.stringify(locationData) },
+        create: {
+          key: `deposit_geo_${deposit.id}`,
+          value: JSON.stringify(locationData),
+          label: `Geo info for deposit ${deposit.id}`,
+          group: 'deposit_location',
+        },
+      }),
+      prisma.user.update({
+        where: { id: userId },
+        data: { lastLoginIp: locationData.ip },
+      }),
+    ])
 
     // Notify user
     await prisma.notification.create({

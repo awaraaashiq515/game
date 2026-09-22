@@ -46,13 +46,22 @@ export default function AdminDepositsPage() {
 
   useEffect(() => { fetchDeposits() }, [statusFilter])
 
+  const [unlockTimeOption, setUnlockTimeOption] = useState('instant')
+  const [customUnlockAt, setCustomUnlockAt] = useState('')
+
   async function submitAction() {
     if (!actionModal) return
     setProcessing(true)
     const res = await fetch('/api/admin/deposits', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ depositId: actionModal.deposit.id, action: actionModal.action, adminNote }),
+      body: JSON.stringify({
+        depositId: actionModal.deposit.id,
+        action: actionModal.action,
+        adminNote,
+        unlockTimeOption,
+        customUnlockAt: unlockTimeOption === 'custom' && customUnlockAt ? new Date(customUnlockAt).toISOString() : null,
+      }),
     })
     const data = await res.json()
     if (data.success) {
@@ -61,6 +70,8 @@ export default function AdminDepositsPage() {
     }
     setActionModal(null)
     setAdminNote('')
+    setUnlockTimeOption('instant')
+    setCustomUnlockAt('')
     fetchDeposits()
     setProcessing(false)
   }
@@ -140,8 +151,8 @@ export default function AdminDepositsPage() {
                       +{formatINR(d.amount)}
                     </div>
                     {d.isActivation && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 6px', borderRadius: 99 }}>
-                        🔓 ACTIVATION FEE
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#ff5a00', background: 'rgba(255,90,0,0.12)', padding: '2px 8px', borderRadius: 99 }}>
+                        🔓 ACTIVATION DEPOSIT
                       </span>
                     )}
                   </td>
@@ -211,12 +222,59 @@ export default function AdminDepositsPage() {
                 background: actionModal.deposit.isActivation ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
                 border: `1px solid ${actionModal.deposit.isActivation ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)'}`,
                 borderRadius: 10, padding: '12px 14px', fontSize: 13,
-                color: actionModal.deposit.isActivation ? '#f59e0b' : 'var(--success)', marginBottom: 20,
+                color: actionModal.deposit.isActivation ? '#f59e0b' : 'var(--success)', marginBottom: 16,
               }}>
                 {actionModal.deposit.isActivation
-                  ? `🔓 Approving will unlock withdrawal for ${actionModal.deposit.user.name}. ₹${actionModal.deposit.amount} added to admin pool.`
+                  ? `🔓 Approving will unlock withdrawal for ${actionModal.deposit.user.name}. Set the unlock schedule below.`
                   : `💡 Approving will instantly add ${formatINR(actionModal.deposit.amount)} to ${actionModal.deposit.user.name}'s wallet.`
                 }
+              </div>
+            )}
+
+            {actionModal.action === 'approve' && actionModal.deposit.isActivation && (
+              <div style={{ marginBottom: 18 }}>
+                <label className="input-label" style={{ fontWeight: 800, marginBottom: 8, display: 'block' }}>
+                  ⏱️ Withdrawal Unlock Time Schedule:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                  {[
+                    { id: 'instant', label: '⚡ Instant (Now)' },
+                    { id: '30m', label: '⏱️ In 30 Mins' },
+                    { id: '1h', label: '⏱️ In 1 Hour' },
+                    { id: '2h', label: '⏱️ In 2 Hours' },
+                    { id: '6h', label: '⏱️ In 6 Hours' },
+                    { id: '24h', label: '⏱️ In 24 Hours' },
+                    { id: 'custom', label: '📅 Custom Date/Time' },
+                  ].map(opt => {
+                    const sel = unlockTimeOption === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setUnlockTimeOption(opt.id)}
+                        style={{
+                          padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                          textAlign: 'center', cursor: 'pointer',
+                          background: sel ? 'rgba(108,71,255,0.15)' : 'var(--bg-card)',
+                          border: sel ? '2px solid var(--primary)' : '1px solid var(--border)',
+                          color: sel ? 'var(--primary)' : 'var(--text-primary)',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {unlockTimeOption === 'custom' && (
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    value={customUnlockAt}
+                    onChange={e => setCustomUnlockAt(e.target.value)}
+                    style={{ width: '100%', fontSize: 13 }}
+                  />
+                )}
               </div>
             )}
 

@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
   if (!session) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
 
   try {
-    const { depositId, action, adminNote } = await request.json()
+    const { depositId, action, adminNote, unlockTimeOption, customUnlockAt } = await request.json()
 
     const deposit = await prisma.depositRequest.findUnique({
       where: { id: depositId },
@@ -82,22 +82,52 @@ export async function PATCH(request: NextRequest) {
       const isActivationFee = deposit.adminNote?.includes('WITHDRAWAL_ACTIVATION_FEE') ?? false
 
       if (isActivationFee) {
-        // ── Activation fee: unlock withdrawal, do NOT credit wallet ──────────
-        await prisma.systemConfig.upsert({
-          where: { key: `withdrawal_activated_${deposit.userId}` },
-          update: { value: 'true' },
-          create: {
-            key: `withdrawal_activated_${deposit.userId}`,
-            value: 'true',
-            label: `Withdrawal activation for user ${deposit.userId}`,
-            group: 'user_activation',
-          },
-        })
+        // Calculate unlock time based on admin selection
+        let unlockDate = new Date()
+        if (unlockTimeOption === '30m') {
+          unlockDate = new Date(Date.now() + 30 * 60 * 1000)
+        } else if (unlockTimeOption === '1h') {
+          unlockDate = new Date(Date.now() + 60 * 60 * 1000)
+        } else if (unlockTimeOption === '2h') {
+          unlockDate = new Date(Date.now() + 2 * 60 * 60 * 1000)
+        } else if (unlockTimeOption === '6h') {
+          unlockDate = new Date(Date.now() + 6 * 60 * 60 * 1000)
+        } else if (unlockTimeOption === '12h') {
+          unlockDate = new Date(Date.now() + 12 * 60 * 60 * 1000)
+        } else if (unlockTimeOption === '24h') {
+          unlockDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
+        } else if (unlockTimeOption === 'custom' && customUnlockAt) {
+          const parsed = new Date(customUnlockAt)
+          if (!isNaN(parsed.getTime())) unlockDate = parsed
+        }
 
-        await prisma.depositRequest.update({
-          where: { id: depositId },
-          data: { status: 'APPROVED', adminNote: deposit.adminNote, processedAt: new Date() },
-        })
+        // ── Activation fee: mark activated and save unlock schedule ─────────
+        await Promise.all([
+          prisma.systemConfig.upsert({
+            where: { key: `withdrawal_activated_${deposit.userId}` },
+            update: { value: 'true' },
+            create: {
+              key: `withdrawal_activated_${deposit.userId}`,
+              value: 'true',
+              label: `Withdrawal activation for user ${deposit.userId}`,
+              group: 'user_activation',
+            },
+          }),
+          prisma.systemConfig.upsert({
+            where: { key: `withdrawal_unlock_at_${deposit.userId}` },
+            update: { value: unlockDate.toISOString() },
+            create: {
+              key: `withdrawal_unlock_at_${deposit.userId}`,
+              value: unlockDate.toISOString(),
+              label: `Withdrawal unlock time for user ${deposit.userId}`,
+              group: 'user_activation',
+            },
+          }),
+          prisma.depositRequest.update({
+            where: { id: depositId },
+            data: { status: 'APPROVED', adminNote: deposit.adminNote, processedAt: new Date() },
+          }),
+        ])
 
         // Credit ₹5 to admin pool
         const adminWallet = await prisma.adminWallet.findFirst()
@@ -108,18 +138,27 @@ export async function PATCH(request: NextRequest) {
           })
         }
 
+        const isDelayed = unlockDate.getTime() > Date.now()
+        const formattedUnlock = unlockDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+
         await prisma.notification.create({
           data: {
             userId: deposit.userId,
             category: 'ACCOUNT',
-            title: '🎉 Withdrawal Unlocked!',
-            message: `Your ₹${deposit.amount} activation payment has been verified. You can now withdraw your earnings!`,
-            metadata: { depositId: deposit.id } as object,
+            title: isDelayed ? '⏰ Withdrawal Unlock Scheduled!' : '🎉 Withdrawal Unlocked!',
+            message: isDelayed
+              ? `Your ₹${deposit.amount} activation payment is verified! Withdrawal will unlock on ${formattedUnlock}.`
+              : `Your ₹${deposit.amount} activation payment has been verified. You can now withdraw your earnings!`,
+            metadata: { depositId: deposit.id, unlockAt: unlockDate.toISOString() } as object,
           },
         })
 
-        return NextResponse.json({ success: true, message: `Activation approved — withdrawal unlocked for ${deposit.user.name}` })
-
+        return NextResponse.json({
+          success: true,
+          message: isDelayed
+            ? `Activation approved! Withdrawal scheduled to unlock at ${formattedUnlock} for ${deposit.user.name}`
+            : `Activation approved — withdrawal unlocked immediately for ${deposit.user.name}`,
+        })
       } else {
         // ── Regular deposit: credit wallet ───────────────────────────────────
         await creditWallet({

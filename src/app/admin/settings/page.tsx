@@ -6,9 +6,10 @@ interface Config {
 }
 
 const GROUPS: Record<string, string> = {
+  payment: '💳 FamPay & Payment Gateway Settings',
+  withdrawal: '🏧 Withdrawal Settings',
   earning: '🎬 Earning Settings',
   referral: '👥 Referral Settings',
-  withdrawal: '🏧 Withdrawal Settings',
 }
 
 export default function AdminSettingsPage() {
@@ -81,11 +82,22 @@ export default function AdminSettingsPage() {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{cfg.label ?? cfg.key}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{cfg.key}</div>
+                  {cfg.key === 'admin_fampay_upi' && (
+                    <div style={{ fontSize: 12, color: 'var(--primary)', marginTop: 4 }}>
+                      💡 Users will send ₹5 to this FamPay UPI ID (e.g. <code>username@fam</code>)
+                    </div>
+                  )}
+                  {cfg.key === 'admin_fampay_qr_url' && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Optional: Paste a link to your FamPay QR code image
+                    </div>
+                  )}
                 </div>
                 <input
                   type="text"
                   className="input"
                   value={edited[cfg.key] ?? cfg.value}
+                  placeholder={cfg.key === 'admin_fampay_upi' ? 'e.g. username@fam' : undefined}
                   onChange={(e) => handleChange(cfg.key, e.target.value)}
                   id={`setting-${cfg.key}`}
                 />
