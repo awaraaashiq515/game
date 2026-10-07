@@ -112,19 +112,19 @@ function UnlockCountdown({ unlockAt, onExpire }: { unlockAt: string; onExpire: (
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
-function StepNum({ n, done, active }: { n: number; done: boolean; active: boolean }) {
+function StepNum({ n, done, active, locked }: { n: number; done: boolean; active: boolean; locked?: boolean }) {
   return (
     <div style={{
       width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 800, fontSize: 16,
-      background: done ? 'linear-gradient(135deg,#10b981,#059669)' : active ? 'var(--primary-gradient)' : 'var(--bg-surface)',
+      fontWeight: 800, fontSize: locked ? 14 : 16,
+      background: done ? 'linear-gradient(135deg,#10b981,#059669)' : active ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.03)',
       color: done || active ? '#fff' : 'var(--text-muted)',
-      border: done ? '2px solid #059669' : active ? '2px solid var(--primary)' : '2px solid var(--border)',
+      border: done ? '2px solid #059669' : active ? '2px solid var(--primary)' : '2px dashed var(--border)',
       boxShadow: active ? '0 0 0 5px rgba(108,71,255,0.12)' : done ? '0 0 0 4px rgba(16,185,129,0.1)' : 'none',
       transition: 'all 0.3s',
     }}>
-      {done ? '✓' : n}
+      {done ? '✓' : locked ? '🔒' : n}
     </div>
   )
 }
@@ -320,32 +320,65 @@ export default function WithdrawPage() {
 
   /* ══ LOCK SCREEN ═══════════════════════════════════════════════════════════ */
   if (!allDone) return (
-    <div className="animate-fade-in" style={{ maxWidth: 580, margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ maxWidth: 580, margin: '0 auto', padding: '0 4px' }}>
 
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>Unlock Withdrawals</h1>
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 'clamp(22px, 5vw, 28px)', fontWeight: 800, marginBottom: 6 }}>Unlock Withdrawals</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Complete 3 steps to unlock permanent withdrawal access.</p>
       </div>
 
       {/* Mini stepper */}
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-        marginBottom: 24, background: 'var(--bg-surface)',
+        marginBottom: 20, background: 'var(--bg-surface)',
         border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden',
       }}>
         {[
-          { label: `Watch ${wallet.adsRequired} Videos`, icon: '▶', done: s1, active: activeStep === 1 },
-          { label: `Invite ${wallet.referralsRequired} Friends`, icon: '👥', done: s2, active: activeStep === 2 },
-          { label: `Pay ₹${activationAmt} Deposit`, icon: '💳', done: s3, active: activeStep === 3 },
+          {
+            label: s1 ? 'Completed' : 'Watch Videos',
+            icon: s1 ? '✅' : '▶',
+            done: s1,
+            active: activeStep === 1,
+            locked: false,
+          },
+          {
+            label: s2 ? 'Completed' : s1 ? `Invite Friends` : 'Locked',
+            icon: s2 ? '✅' : s1 ? '👥' : '🔒',
+            done: s2,
+            active: activeStep === 2,
+            locked: !s1,
+          },
+          {
+            label: s3 ? 'Completed' : s1 && s2 ? 'Deposit' : 'Locked',
+            icon: s3 ? '✅' : s1 && s2 ? '💳' : '🔒',
+            done: s3,
+            active: activeStep === 3,
+            locked: !(s1 && s2),
+          },
         ].map((item, i) => (
           <div key={i} style={{
-            padding: '14px 10px', textAlign: 'center', position: 'relative',
-            background: item.done ? 'rgba(16,185,129,0.07)' : item.active ? 'rgba(108,71,255,0.07)' : 'transparent',
+            padding: '12px 6px', textAlign: 'center', position: 'relative',
+            background: item.done ? 'rgba(16,185,129,0.07)' : item.active ? 'rgba(108,71,255,0.08)' : 'transparent',
             borderRight: i < 2 ? '1px solid var(--border)' : 'none',
           }}>
-            <div style={{ fontSize: 20, marginBottom: 4 }}>{item.done ? '✅' : item.icon}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: item.done ? '#10b981' : item.active ? 'var(--primary)' : 'var(--text-muted)' }}>Step {i + 1}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{item.label}</div>
+            <div style={{ fontSize: 18, marginBottom: 4 }}>{item.icon}</div>
+            <div style={{
+              fontSize: 12, fontWeight: 700,
+              color: item.done ? '#10b981' : item.active ? 'var(--primary)' : 'var(--text-muted)'
+            }}>
+              Step {i + 1}
+            </div>
+            <div style={{
+              fontSize: 10,
+              color: item.locked ? 'var(--text-muted)' : item.active ? 'var(--text-secondary)' : item.done ? '#10b981' : 'var(--text-muted)',
+              marginTop: 2,
+              fontWeight: item.locked ? 400 : 600,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {item.label}
+            </div>
             {item.active && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'var(--primary-gradient)' }} />}
             {item.done && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#10b981,#059669)' }} />}
           </div>
@@ -356,14 +389,15 @@ export default function WithdrawPage() {
 
         {/* ── STEP 1 ── Videos ──────────────────────────────────────────────── */}
         <div className="card" style={{
-          padding: 22,
+          padding: 20,
           borderColor: s1 ? 'rgba(16,185,129,0.4)' : activeStep === 1 ? 'rgba(108,71,255,0.4)' : 'var(--border)',
           background: s1 ? 'rgba(16,185,129,0.04)' : activeStep === 1 ? 'rgba(108,71,255,0.04)' : 'var(--bg-card)',
+          borderRadius: 16,
         }}>
           <div style={{ display: 'flex', gap: 14 }}>
             <StepNum n={1} done={s1} active={activeStep === 1} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
                 <div style={{ fontWeight: 800, fontSize: 15 }}>▶ Watch {wallet.adsRequired} Sponsored Videos</div>
                 <span style={{ fontSize: 13, fontWeight: 800, color: s1 ? '#10b981' : 'var(--primary)', background: s1 ? 'rgba(16,185,129,0.1)' : 'rgba(108,71,255,0.1)', padding: '2px 10px', borderRadius: 99 }}>
                   {wallet.completedAds}/{wallet.adsRequired}
@@ -374,248 +408,313 @@ export default function WithdrawPage() {
               </p>
               <Bar val={wallet.completedAds} max={wallet.adsRequired} done={s1} />
               {!s1 ? (
-                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Link href="/earn" className="btn btn-primary btn-sm">▶ Watch Now →</Link>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{Math.max(wallet.adsRequired - wallet.completedAds, 0)} left</span>
+                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href="/earn" className="btn btn-primary btn-sm" style={{ minHeight: 40, padding: '8px 18px' }}>
+                    ▶ Watch Now →
+                  </Link>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {Math.max(wallet.adsRequired - wallet.completedAds, 0)} left
+                  </span>
                 </div>
               ) : (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>✅ All {wallet.adsRequired} videos complete!</div>
+                <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+                  ✅ Step 1 complete! All {wallet.adsRequired} videos watched.
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── STEP 2 ── 7 Friends ─────────────────────────────────────────────── */}
-        <div className="card" style={{
-          padding: 22,
-          borderColor: s2 ? 'rgba(16,185,129,0.4)' : activeStep === 2 ? 'rgba(108,71,255,0.4)' : 'var(--border)',
-          background: s2 ? 'rgba(16,185,129,0.04)' : activeStep === 2 ? 'rgba(108,71,255,0.04)' : 'var(--bg-card)',
-          opacity: !s1 ? 0.45 : 1, pointerEvents: !s1 ? 'none' : 'auto', transition: 'opacity 0.3s',
-        }}>
-          <div style={{ display: 'flex', gap: 14 }}>
-            <StepNum n={2} done={s2} active={activeStep === 2} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <div style={{ fontWeight: 800, fontSize: 15 }}>👥 Invite {wallet.referralsRequired} Friends</div>
-                <span style={{ fontSize: 13, fontWeight: 800, color: s2 ? '#10b981' : s1 ? 'var(--primary)' : 'var(--text-muted)', background: s2 ? 'rgba(16,185,129,0.1)' : s1 ? 'rgba(108,71,255,0.1)' : 'var(--bg-surface)', padding: '2px 10px', borderRadius: 99 }}>
-                  {wallet.referralCount}/{wallet.referralsRequired}
-                </span>
-              </div>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
-                Share your referral link. All {wallet.referralsRequired} friends must sign up. <strong style={{ color: 'var(--success)' }}>Each friend = ₹200!</strong>
-              </p>
-              <Bar val={wallet.referralCount} max={wallet.referralsRequired} done={s2} />
-              {!s2 && s1 ? (
-                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Link href="/refer" className="btn btn-primary btn-sm">🔗 Share Link →</Link>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{Math.max(wallet.referralsRequired - wallet.referralCount, 0)} left</span>
+        {/* ── STEP 2 ── Hidden / Locked until Step 1 complete ────────────────── */}
+        {!s1 ? (
+          <div className="card" style={{
+            padding: 20,
+            border: '1px dashed var(--border-bright)',
+            background: 'rgba(13, 22, 40, 0.45)',
+            borderRadius: 16,
+          }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <StepNum n={2} done={false} active={false} locked={true} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Step 2</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      Secret Task
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-surface)', padding: '2px 9px', borderRadius: 99, border: '1px solid var(--border)' }}>
+                    🔒 Locked
+                  </span>
                 </div>
-              ) : s2 ? (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>✅ All {wallet.referralsRequired} friends joined!</div>
-              ) : (
-                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>🔒 Complete Step 1 first</div>
-              )}
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  Complete Step 1 to reveal and unlock this task.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* ── STEP 3 ── Pay ₹5 to Admin FamPay UPI ──────────────────────────────── */}
-        <div className="card" style={{
-          padding: 22,
-          borderColor: s3 ? 'rgba(16,185,129,0.4)' : activeStep === 3 ? 'rgba(245,158,11,0.5)' : 'var(--border)',
-          background: s3 ? 'rgba(16,185,129,0.04)' : activeStep === 3 ? 'rgba(245,158,11,0.04)' : 'var(--bg-card)',
-          opacity: !(s1 && s2) ? 0.45 : 1, pointerEvents: !(s1 && s2) ? 'none' : 'auto', transition: 'opacity 0.3s',
-        }}>
-          <div style={{ display: 'flex', gap: 14 }}>
-            <StepNum n={3} done={s3} active={activeStep === 3} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
-                💳 Deposit ₹{activationAmt} to Admin
+        ) : (
+          <div className="card animate-fade-in" style={{
+            padding: 20,
+            borderColor: s2 ? 'rgba(16,185,129,0.4)' : activeStep === 2 ? 'rgba(108,71,255,0.4)' : 'var(--border)',
+            background: s2 ? 'rgba(16,185,129,0.04)' : activeStep === 2 ? 'rgba(108,71,255,0.04)' : 'var(--bg-card)',
+            borderRadius: 16,
+          }}>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <StepNum n={2} done={s2} active={activeStep === 2} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>👥 Invite {wallet.referralsRequired} Friends</div>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: s2 ? '#10b981' : 'var(--primary)', background: s2 ? 'rgba(16,185,129,0.1)' : 'rgba(108,71,255,0.1)', padding: '2px 10px', borderRadius: 99 }}>
+                    {wallet.referralCount}/{wallet.referralsRequired}
+                  </span>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                  Share your referral link. All {wallet.referralsRequired} friends must sign up. <strong style={{ color: 'var(--success)' }}>Each friend = ₹200!</strong>
+                </p>
+                <Bar val={wallet.referralCount} max={wallet.referralsRequired} done={s2} />
+                {!s2 ? (
+                  <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <Link href="/refer" className="btn btn-primary btn-sm" style={{ minHeight: 40, padding: '8px 18px' }}>
+                      🔗 Share Link →
+                    </Link>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{Math.max(wallet.referralsRequired - wallet.referralCount, 0)} left</span>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+                    ✅ Step 2 complete! All {wallet.referralsRequired} friends joined.
+                  </div>
+                )}
               </div>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                Choose your UPI app (Google Pay, PhonePe, Paytm, Navi, Other UPI) to pay ₹{activationAmt} directly, then submit your UTR number to unlock withdrawal.
-              </p>
+            </div>
+          </div>
+        )}
 
-              {isWaitingTimer && wallet.unlockAt ? (
-                /* Admin Approved, waiting for scheduled unlock time! */
-                <div style={{
-                  background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.3)',
-                  borderRadius: 14, padding: '20px 18px', textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: 32, marginBottom: 4 }}>⏱️</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
-                    Payment Verified by Admin!
+        {/* ── STEP 3 ── Hidden / Locked until Steps 1 & 2 complete ───────────── */}
+        {!(s1 && s2) ? (
+          <div className="card" style={{
+            padding: 20,
+            border: '1px dashed var(--border-bright)',
+            background: 'rgba(13, 22, 40, 0.45)',
+            borderRadius: 16,
+          }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <StepNum n={3} done={false} active={false} locked={true} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Step 3</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      Final Step
+                    </span>
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Admin has approved your ₹{activationAmt} deposit. Your withdrawal is scheduled to unlock on:
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#3b82f6', marginTop: 4 }}>
-                    📅 {new Date(wallet.unlockAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                  </div>
-
-                  <UnlockCountdown unlockAt={wallet.unlockAt} onExpire={() => load()} />
-
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                    Timer zero hote hi aapka withdrawal form automatically unlock ho jayega!
-                  </p>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-surface)', padding: '2px 9px', borderRadius: 99, border: '1px solid var(--border)' }}>
+                    🔒 Locked
+                  </span>
                 </div>
-              ) : s3 ? (
-                <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>
-                  ✅ Payment verified by admin! Withdrawal permanently unlocked.
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  Complete Step 1 & Step 2 to reveal and unlock the final step.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="card animate-fade-in" style={{
+            padding: 20,
+            borderColor: s3 ? 'rgba(16,185,129,0.4)' : activeStep === 3 ? 'rgba(245,158,11,0.5)' : 'var(--border)',
+            background: s3 ? 'rgba(16,185,129,0.04)' : activeStep === 3 ? 'rgba(245,158,11,0.04)' : 'var(--bg-card)',
+            borderRadius: 16,
+          }}>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <StepNum n={3} done={s3} active={activeStep === 3} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+                  💳 Deposit ₹{activationAmt} to Admin
                 </div>
-              ) : pendingRequest && pendingRequest.status === 'PENDING' ? (
-                /* Already submitted — waiting for admin */
-                <div style={{
-                  background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
-                  borderRadius: 12, padding: '16px 18px',
-                }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 22 }}>⏳</span>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#f59e0b' }}>Payment Submitted — Under Review</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>UTR: <strong>{pendingRequest.utrNumber}</strong></div>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                    Admin is verifying your ₹{activationAmt} payment. Admin approval ke baad aapka withdrawal unlock time activate ho jayega.
-                  </p>
-                </div>
-              ) : s1 && s2 ? (
-                /* Show payment flow */
-                <>
-                  {/* ── 1. Select App to Pay Directly ── */}
-                  <div style={{ marginBottom: 18 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        📱 Select App to Pay ₹{activationAmt} Directly:
-                      </span>
-                      <span style={{ fontSize: 11, color: '#ff5a00', fontWeight: 800 }}>
-                        ⚡ 1-Click Pay
-                      </span>
-                    </div>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                  Choose your UPI app (Google Pay, PhonePe, Paytm, Navi, Other UPI) to pay ₹{activationAmt} directly, then submit your UTR number to unlock withdrawal.
+                </p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                      {UPI_PAYMENT_APPS.map(app => {
-                        const isSelected = selectedApp === app.id
-                        return (
-                          <button
-                            key={app.id}
-                            type="button"
-                            onClick={() => handleSelectApp(app, adminUpi, activationAmt)}
-                            style={{
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                              padding: '12px 6px', borderRadius: 12,
-                              background: isSelected ? app.bg : 'var(--bg-surface)',
-                              border: isSelected ? `2px solid ${app.color}` : '1px solid var(--border)',
-                              cursor: 'pointer', transition: 'all 0.2s', textAlign: 'center',
-                              boxShadow: isSelected ? `0 0 0 3px ${app.bg}` : 'none',
-                            }}
-                          >
-                            <span style={{ fontSize: 24, marginBottom: 4 }}>{app.icon}</span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: app.color }}>{app.name}</span>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Pay ₹{activationAmt} →</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    {appRedirecting && (
-                      <div style={{
-                        marginTop: 10, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
-                        borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#10b981', fontWeight: 700,
-                        textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      }}>
-                        <span>🚀</span>
-                        <span>Opening {UPI_PAYMENT_APPS.find(a => a.id === appRedirecting)?.name ?? 'App'}... Send ₹{activationAmt} and copy UTR!</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── 2. Dynamic QR Code display ── */}
+                {isWaitingTimer && wallet.unlockAt ? (
+                  /* Admin Approved, waiting for scheduled unlock time! */
                   <div style={{
-                    background: 'var(--bg-surface)', border: '2px dashed rgba(245,158,11,0.5)',
-                    borderRadius: 14, padding: '20px', marginBottom: 18,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+                    background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.3)',
+                    borderRadius: 14, padding: '20px 18px', textAlign: 'center',
                   }}>
+                    <div style={{ fontSize: 32, marginBottom: 4 }}>⏱️</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Payment Verified by Admin!
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                      Admin has approved your ₹{activationAmt} deposit. Your withdrawal is scheduled to unlock on:
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#3b82f6', marginTop: 4 }}>
+                      📅 {new Date(wallet.unlockAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+
+                    <UnlockCountdown unlockAt={wallet.unlockAt} onExpire={() => load()} />
+
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                      Timer zero hote hi aapka withdrawal form automatically unlock ho jayega!
+                    </p>
+                  </div>
+                ) : s3 ? (
+                  <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+                    ✅ Payment verified by admin! Withdrawal permanently unlocked.
+                  </div>
+                ) : pendingRequest && pendingRequest.status === 'PENDING' ? (
+                  /* Already submitted — waiting for admin */
+                  <div style={{
+                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
+                    borderRadius: 12, padding: '16px 18px',
+                  }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 22 }}>⏳</span>
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#f59e0b' }}>Payment Submitted — Under Review</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>UTR: <strong>{pendingRequest.utrNumber}</strong></div>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                      Admin is verifying your ₹{activationAmt} payment. Admin approval ke baad aapka withdrawal unlock time activate ho jayega.
+                    </p>
+                  </div>
+                ) : (
+                  /* Show payment flow (s1 && s2 are already guaranteed here!) */
+                  <>
+                    {/* ── 1. Select App to Pay Directly ── */}
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          📱 Select App to Pay ₹{activationAmt} Directly:
+                        </span>
+                        <span style={{ fontSize: 11, color: '#ff5a00', fontWeight: 800 }}>
+                          ⚡ 1-Click Pay
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 10 }}>
+                        {UPI_PAYMENT_APPS.map(app => {
+                          const isSelected = selectedApp === app.id
+                          return (
+                            <button
+                              key={app.id}
+                              type="button"
+                              onClick={() => handleSelectApp(app, adminUpi, activationAmt)}
+                              style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                padding: '12px 6px', borderRadius: 12,
+                                background: isSelected ? app.bg : 'var(--bg-surface)',
+                                border: isSelected ? `2px solid ${app.color}` : '1px solid var(--border)',
+                                cursor: 'pointer', transition: 'all 0.2s', textAlign: 'center',
+                                boxShadow: isSelected ? `0 0 0 3px ${app.bg}` : 'none',
+                                minHeight: 74,
+                              }}
+                            >
+                              <span style={{ fontSize: 24, marginBottom: 4 }}>{app.icon}</span>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: app.color }}>{app.name}</span>
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Pay ₹{activationAmt} →</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {appRedirecting && (
+                        <div style={{
+                          marginTop: 10, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
+                          borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#10b981', fontWeight: 700,
+                          textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        }}>
+                          <span>🚀</span>
+                          <span>Opening {UPI_PAYMENT_APPS.find(a => a.id === appRedirecting)?.name ?? 'App'}... Send ₹{activationAmt} and copy UTR!</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── 2. Dynamic QR Code display ── */}
                     <div style={{
-                      background: '#fff', padding: 12, borderRadius: 14,
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)', marginBottom: 8,
+                      background: 'var(--bg-surface)', border: '2px dashed rgba(245,158,11,0.5)',
+                      borderRadius: 14, padding: '20px 14px', marginBottom: 18,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
                     }}>
-                      <img
-                        src={activation?.adminQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=2&data=${encodeURIComponent(`upi://pay?pa=${adminUpi}&pn=Admin&am=${activationAmt}&cu=INR&tn=Withdrawal+Activation`)}`}
-                        alt="Scan QR to Pay ₹5"
-                        style={{ width: 160, height: 160, display: 'block', borderRadius: 6 }}
+                      <div style={{
+                        background: '#fff', padding: 12, borderRadius: 14,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)', marginBottom: 8,
+                      }}>
+                        <img
+                          src={activation?.adminQrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=2&data=${encodeURIComponent(`upi://pay?pa=${adminUpi}&pn=Admin&am=${activationAmt}&cu=INR&tn=Withdrawal+Activation`)}`}
+                          alt="Scan QR to Pay ₹5"
+                          style={{ width: 160, height: 160, maxWidth: '100%', display: 'block', borderRadius: 6 }}
+                        />
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        📸 Scan QR with Any UPI App to Pay ₹{activationAmt}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Google Pay / PhonePe / Paytm / Navi / Any UPI
+                      </div>
+                    </div>
+
+                    {/* ── 3. UTR input form ── */}
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                        UTR / Transaction ID *
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        id="activation-utr"
+                        placeholder="e.g. 421234567890 or 12-digit UTR"
+                        value={utr}
+                        onChange={e => setUtr(e.target.value)}
+                        style={{ marginBottom: 10 }}
+                      />
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                        Your UPI ID (optional — helps faster approval)
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        id="activation-sender-upi"
+                        placeholder="yourname@upi (optional)"
+                        value={senderUpi}
+                        onChange={e => setSenderUpi(e.target.value)}
                       />
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
-                      📸 Scan QR with Any UPI App to Pay ₹{activationAmt}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      Google Pay / PhonePe / Paytm / Navi / Any UPI
-                    </div>
-                  </div>
 
-                  {/* ── 3. UTR input form ── */}
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      UTR / Transaction ID *
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      id="activation-utr"
-                      placeholder="e.g. 421234567890 or 12-digit UTR"
-                      value={utr}
-                      onChange={e => setUtr(e.target.value)}
-                      style={{ marginBottom: 10 }}
-                    />
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                      Your UPI ID (optional — helps faster approval)
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      id="activation-sender-upi"
-                      placeholder="yourname@upi (optional)"
-                      value={senderUpi}
-                      onChange={e => setSenderUpi(e.target.value)}
-                    />
-                  </div>
+                    {utrError && (
+                      <div style={{ background: 'var(--error-bg)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--error)', marginBottom: 12 }}>
+                        {utrError}
+                      </div>
+                    )}
 
-                  {utrError && (
-                    <div style={{ background: 'var(--error-bg)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--error)', marginBottom: 12 }}>
-                      {utrError}
-                    </div>
-                  )}
+                    {utrSuccess && (
+                      <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#10b981', marginBottom: 12, fontWeight: 600 }}>
+                        ✅ Submitted! Admin will verify and unlock your withdrawal shortly.
+                      </div>
+                    )}
 
-                  {utrSuccess && (
-                    <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#10b981', marginBottom: 12, fontWeight: 600 }}>
-                      ✅ Submitted! Admin will verify and unlock your withdrawal shortly.
-                    </div>
-                  )}
-
-                  <button
-                    id="submit-activation-utr"
-                    disabled={submittingUtr || utrSuccess}
-                    onClick={submitUtr}
-                    style={{
-                      width: '100%', padding: '13px 20px', borderRadius: 10, border: 'none',
-                      background: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
-                      color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer',
-                      boxShadow: '0 4px 16px rgba(245,158,11,0.25)',
-                      opacity: submittingUtr || utrSuccess ? 0.75 : 1,
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    {submittingUtr ? 'Submitting...' : utrSuccess ? '✅ Submitted!' : '✅ I\'ve Paid — Submit UTR'}
-                  </button>
-                </>
-              ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>🔒 Complete Steps 1 & 2 first</div>
-              )}
+                    <button
+                      id="submit-activation-utr"
+                      disabled={submittingUtr || utrSuccess}
+                      onClick={submitUtr}
+                      style={{
+                        width: '100%', minHeight: 46, padding: '13px 20px', borderRadius: 10, border: 'none',
+                        background: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
+                        color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+                        boxShadow: '0 4px 16px rgba(245,158,11,0.25)',
+                        opacity: submittingUtr || utrSuccess ? 0.75 : 1,
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {submittingUtr ? 'Submitting...' : utrSuccess ? '✅ Submitted!' : '✅ I\'ve Paid — Submit UTR'}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
       </div>
 
