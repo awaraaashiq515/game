@@ -38,8 +38,11 @@ export async function validateWatchCompletion(params: {
     return { valid: false, reason: 'Campaign has ended' }
   }
 
-  // 4. Check minimum watch duration
-  const requiredSeconds = campaign.watchDuration
+  // 4. Check minimum watch duration (respect admin global setting)
+  const minDurationConfig = await prisma.systemConfig.findUnique({ where: { key: 'min_watch_duration' } })
+  const requiredSeconds = minDurationConfig?.value && parseInt(minDurationConfig.value) > 0
+    ? parseInt(minDurationConfig.value)
+    : campaign.watchDuration
   const watchedRatio = watchedSeconds / requiredSeconds
   if (watchedRatio < FAST_COMPLETION_THRESHOLD) {
     await logFraudEvent({

@@ -42,7 +42,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Campaign not found' }, { status: 404 })
     }
 
-    const rewardAmount = campaign.rewardAmount
+    // Get campaign reward amount (respect admin global setting)
+    const rewardConfig = await prisma.systemConfig.findUnique({ where: { key: 'video_reward_amount' } })
+    const rewardAmount = rewardConfig?.value && parseFloat(rewardConfig.value) > 0
+      ? parseFloat(rewardConfig.value)
+      : campaign.rewardAmount
 
     // Mark session as completed
     await prisma.videoWatchSession.update({

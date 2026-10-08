@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
   const userId = session.user.id
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -32,11 +31,15 @@ export async function GET(request: NextRequest) {
     })
     const completedCampaignIds = new Set(todayCompletions.map((c) => c.campaignId))
 
-    // Get daily limit
-    const dailyLimitConfig = await prisma.systemConfig.findUnique({
-      where: { key: 'daily_video_limit' },
-    })
+    // Get system configs (daily limit, global video duration, reward amount)
+    const [dailyLimitConfig, minDurationConfig, rewardConfig] = await Promise.all([
+      prisma.systemConfig.findUnique({ where: { key: 'daily_video_limit' } }),
+      prisma.systemConfig.findUnique({ where: { key: 'min_watch_duration' } }),
+      prisma.systemConfig.findUnique({ where: { key: 'video_reward_amount' } }),
+    ])
     const globalDailyLimit = parseInt(dailyLimitConfig?.value ?? '10')
+    const globalWatchDuration = minDurationConfig?.value ? parseInt(minDurationConfig.value) : null
+    const globalRewardAmount = rewardConfig?.value ? parseFloat(rewardConfig.value) : null
     const todayCount = todayCompletions.length
 
     const campaignsWithStatus = campaigns.map((campaign) => {
@@ -55,8 +58,8 @@ export async function GET(request: NextRequest) {
         description: campaign.description,
         thumbnailUrl: campaign.thumbnailUrl,
         videoUrl: campaign.videoUrl,
-        rewardAmount: campaign.rewardAmount,
-        watchDuration: campaign.watchDuration,
+        rewardAmount: globalRewardAmount && globalRewardAmount > 0 ? globalRewardAmount : campaign.rewardAmount,
+        watchDuration: globalWatchDuration && globalWatchDuration > 0 ? globalWatchDuration : campaign.watchDuration,
         status: campaign.status,
         userStatus,
         totalCompletions: campaign.totalCompletions,

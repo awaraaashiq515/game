@@ -61,6 +61,18 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Fetch global duration and reward configs if configured by admin
+    const [minDurationConfig, rewardConfig] = await Promise.all([
+      prisma.systemConfig.findUnique({ where: { key: 'min_watch_duration' } }),
+      prisma.systemConfig.findUnique({ where: { key: 'video_reward_amount' } }),
+    ])
+    const effectiveWatchDuration = minDurationConfig?.value && parseInt(minDurationConfig.value) > 0
+      ? parseInt(minDurationConfig.value)
+      : campaign.watchDuration
+    const effectiveRewardAmount = rewardConfig?.value && parseFloat(rewardConfig.value) > 0
+      ? parseFloat(rewardConfig.value)
+      : campaign.rewardAmount
+
     if (existingSession) {
       // Return existing session
       return NextResponse.json({
@@ -68,8 +80,8 @@ export async function POST(request: NextRequest) {
         data: {
           sessionId: existingSession.id,
           sessionToken: existingSession.sessionToken,
-          watchDuration: campaign.watchDuration,
-          rewardAmount: campaign.rewardAmount,
+          watchDuration: effectiveWatchDuration,
+          rewardAmount: effectiveRewardAmount,
           watchedSeconds: existingSession.watchedSeconds,
         },
       })
@@ -92,8 +104,8 @@ export async function POST(request: NextRequest) {
       data: {
         sessionId: watchSession.id,
         sessionToken: watchSession.sessionToken,
-        watchDuration: campaign.watchDuration,
-        rewardAmount: campaign.rewardAmount,
+        watchDuration: effectiveWatchDuration,
+        rewardAmount: effectiveRewardAmount,
         watchedSeconds: 0,
       },
     })

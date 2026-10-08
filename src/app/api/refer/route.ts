@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -42,11 +42,17 @@ export async function GET(request: NextRequest) {
       (r: { status: string }) => r.status === 'QUALIFIED' || r.status === 'REWARDED'
     ).length
 
+    const rewardConfig = await prisma.systemConfig.findUnique({
+      where: { key: 'referral_reward_amount' },
+    })
+    const referralRewardAmount = parseFloat(rewardConfig?.value ?? '200')
+
     return NextResponse.json({
       success: true,
       data: {
         referralCode: user.referralCode,
         referralLink,
+        referralRewardAmount,
         totalReferrals,
         qualifiedReferrals,
         pendingReferrals: referrals.filter((r: { status: string }) => r.status === 'PENDING').length,

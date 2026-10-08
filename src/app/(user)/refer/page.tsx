@@ -5,6 +5,7 @@ import { formatINR, formatDate } from '@/lib/utils'
 interface ReferralData {
   referralCode: string
   referralLink: string
+  referralRewardAmount?: number
   totalReferrals: number
   qualifiedReferrals: number
   pendingReferrals: number
@@ -134,7 +135,7 @@ export default function ReferPage() {
         </div>
         <h1 className="refer-title">Refer & Earn</h1>
         <p className="refer-subtitle">
-          Invite friends & family. Earn <strong style={{ color: 'var(--text-primary)' }}>₹200</strong> directly in your wallet when they complete their first video!
+          Invite friends & family. Earn <strong style={{ color: 'var(--text-primary)' }}>₹{data?.referralRewardAmount ?? 200}</strong> directly in your wallet when they complete their first video!
         </p>
       </div>
 
@@ -147,12 +148,12 @@ export default function ReferPage() {
 
         <div className="refer-reward-amount-row">
           <span className="refer-reward-currency">₹</span>
-          <span className="refer-reward-number">200</span>
+          <span className="refer-reward-number">{data?.referralRewardAmount ?? 200}</span>
           <span className="refer-reward-unit">/ friend</span>
         </div>
 
         <p className="refer-hero-desc">
-          Get ₹200 credited to your available balance for every friend who signs up with your link and watches their first eligible video.
+          Get ₹{data?.referralRewardAmount ?? 200} credited to your available balance for every friend who signs up with your link and watches their first eligible video.
         </p>
 
         <div className="refer-hero-features">
