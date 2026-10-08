@@ -46,7 +46,7 @@ function UserLayoutInner({ children }: { children: React.ReactNode }) {
   if (!session) return null
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)', maxWidth: '100vw', overflowX: 'hidden' }}>
       {/* Sidebar */}
       <aside
         style={{
@@ -119,7 +119,7 @@ function UserLayoutInner({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, marginLeft: 256, padding: '32px', paddingBottom: 100 }} className="main-content">
+      <main style={{ flex: 1, minWidth: 0, marginLeft: 256, padding: '32px', paddingBottom: 100 }} className="main-content">
         {children}
       </main>
 
@@ -136,7 +136,16 @@ function UserLayoutInner({ children }: { children: React.ReactNode }) {
       <style>{`
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
-          .main-content { margin-left: 0 !important; padding: 20px 16px !important; }
+          .main-content {
+            margin-left: 0 !important;
+            padding: 16px 14px !important;
+            padding-bottom: 96px !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+          }
         }
       `}</style>
     </div>
